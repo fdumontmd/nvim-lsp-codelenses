@@ -1,7 +1,7 @@
 -- https://github.com/neovim/neovim/blob/bccae5a05aef24e6b94d1433172897b3661c05d9/runtime/lua/vim/lsp/codelens.lua
 
 local util = require('vim.lsp.util')
-local hi = require('jg.highlight')
+-- local hi = require('jg.highlight')
 
 local api = vim.api
 local active_requests = {}
