@@ -80,6 +80,7 @@ local function set_virtual_text(bufnr, ns, line, line_lenses)
   api.nvim_buf_set_virtual_text(bufnr, ns, line, chunks, {})
 end
 
+-- not used...
 local function set_sign(line)
   vim.fn.sign_place(
     new_line, SIGN_GROUP, "LspCodeLensSign", "%",
@@ -109,7 +110,7 @@ local function resolve(bufnr, lens, done)
   table.insert(active_requests, cancel)
 end
 
-local function on_codelens(err, _, result, client_id, bufnr)
+function M.on_codelens(err, _, result, client_id, bufnr)
   if err ~= nil and err.code == vim.lsp.protocol.ErrorCodes.MethodNotFound then
     -- none of the running lamguage servers support code lenses
     return
@@ -167,22 +168,26 @@ function M.buf_codelenses_refresh()
 
   local _, cancel = vim.lsp.buf_request(0, 'textDocument/codeLens', {
     textDocument = util.make_text_document_params()
-  })
+  }, M.on_codelens_adapt)
 
   table.insert(active_requests, cancel)
 end
 
-function M.setup()
-  vim.lsp.handlers['textDocument/codeLens'] = on_codelens
+-- should not install by default; need to check the server capabilities first
+function M.setup(client)
+  if client.resolved_capabilities.code_lens then
+    vim.api.nvim_create_augroup('jg.lsp.codelenses', {})
+    vim.api.nvim_create_autocmd({ 'BufEnter', 'InsertLeave', 'CursorHold' }, {
+      group = 'jg.lsp.codelenses',
+      buffer = 0,
+      callback = M.buf_codelenses_refresh
+    })
+  end
+  -- vim.lsp.handlers['textDocument/codeLens'] = on_codelens
 
   vim.cmd('highlight! link LspCodeLensText Comment')
   vim.cmd('highlight! link LspCodeLensTextSign LspCodeLensText')
   vim.cmd('highlight! link LspCodeLensTextSeparator LspCodeLensText')
-
-  vim.cmd('augroup jg.lsp.codelenses')
-  vim.cmd('  autocmd!')
-  vim.cmd('  autocmd BufEnter,InsertLeave,CursorHold * :lua require("jg.lsp.codelenses").buf_codelenses_refresh()')
-  vim.cmd('augroup end')
 end
 
 function M.buf_codelens_action()
@@ -204,5 +209,10 @@ function M.buf_codelens_action()
     execute_codelens_command(bufnr, line, option.client, option.lens.command)
   end
 end
+
+function M.on_codelens_adapt(err, result, ctx, _)
+  M.on_codelens(err, nil, result, ctx.client_id, ctx.bufnr)
+end
+
 
 return M
